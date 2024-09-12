@@ -18,7 +18,10 @@ def main():
     with col1:
         version = st.selectbox("Select YOLO version", ["v8", "v9"])
     with col2:
-        size = st.selectbox("Select model size", ["n", "s", "m", "l", "x"])
+        if version == "v8":
+            size = st.selectbox("Select model size", ["n", "s", "m", "l"])
+        elif version == "v9":
+            size = st.selectbox("Select model size", ["t", "s", "m", "c"])
 
     model = load_model(version, size)
 
