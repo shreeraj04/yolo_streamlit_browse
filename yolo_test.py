@@ -89,6 +89,7 @@ def main():
         # Load model only when needed
         if model is None:
             with st.spinner("Loading model... This may take a moment."):
+                st.text(f"Using Yolo {version}-{size}")
                 model = load_model(version, size)
 
         with st.spinner("Detecting objects..."):
