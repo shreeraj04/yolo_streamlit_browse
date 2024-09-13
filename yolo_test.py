@@ -43,22 +43,13 @@ def main():
             detections = results.boxes.data.cpu().numpy()
             classes = results.names
             
-            # Create a list of detections with class names and confidences
-            detection_list = []
-            for detection in detections:
-                class_id = int(detection[5])
-                class_name = classes[class_id]
-                confidence = detection[4]
-                detection_list.append({
-                    "Class": class_name,
-                    "Confidence": f"{confidence:.2%}"
-                })
-            
-            # Display the list of detections
-            if detection_list:
-                st.subheader("Detected Objects:")
-                df = pd.DataFrame(detection_list)
-                st.table(df)
+            st.subheader("Detected Objects:")
+            if len(detections) > 0:
+                for detection in detections:
+                    class_id = int(detection[5])
+                    class_name = classes[class_id]
+                    confidence = detection[4]
+                    st.write(f"{class_name}: {confidence:.2%}")
             else:
                 st.info("No objects detected in the image.")
 
