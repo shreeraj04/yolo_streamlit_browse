@@ -4,19 +4,35 @@ from PIL import Image
 import io
 import requests
 
+# Cache the model loading
+@st.cache_resource
 def load_model(version, size):
     model_name = f"yolo{version}{size}"
     return YOLO(model_name)
 
-def detect_objects(model, image):
-    results = model(image)
+# Cache the object detection function
+@st.cache_data
+def detect_objects(_model, image_bytes, max_size=640):
+    # Convert bytes back to PIL Image
+    image = Image.open(io.BytesIO(image_bytes))
+    
+    # Resize image if it's too large
+    if max(image.size) > max_size:
+        image.thumbnail((max_size, max_size))
+    
+    results = _model(image)
     return results[0]
 
-def load_image_from_url(url):
+@st.cache_data
+def load_image_from_url(url, max_size=640):
     try:
         response = requests.get(url)
         if response.status_code == 200:
-            return Image.open(io.BytesIO(response.content))
+            image = Image.open(io.BytesIO(response.content))
+            # Resize image if it's too large
+            if max(image.size) > max_size:
+                image.thumbnail((max_size, max_size))
+            return image
         else:
             st.error("Failed to load image from URL.")
             return None
@@ -26,7 +42,12 @@ def load_image_from_url(url):
 
 def is_valid_image_file(filename):
     valid_extensions = [".jpg", ".jpeg", ".png"]
-    return any(filename.endswith(ext) for ext in valid_extensions)
+    return any(filename.lower().endswith(ext) for ext in valid_extensions)
+
+def image_to_bytes(image):
+    buf = io.BytesIO()
+    image.save(buf, format='PNG')
+    return buf.getvalue()
 
 def main():
     st.title("YOLO Object Detection App")
@@ -40,10 +61,13 @@ def main():
         elif version == "v9":
             size = st.selectbox("Select model size", ["t", "s", "m", "c"])
 
-    model = load_model(version, size)
+    # Lazy loading of the model
+    model = None
 
     # Two options: Upload image or provide URL
     option = st.radio("Choose an option to provide the image", ["Upload Image", "Image URL"])
+
+    image = None
 
     if option == "Upload Image":
         uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
@@ -58,11 +82,19 @@ def main():
             image = load_image_from_url(image_url)
             if image:
                 st.image(image, caption="Image from URL", use_column_width=True)
-        else:
+        elif image_url:
             st.warning("Please provide a valid image URL with jpg, jpeg, or png extension.")
 
-    if 'image' in locals() and st.button("Detect Objects"):
-        results = detect_objects(model, image)
+    if image is not None and st.button("Detect Objects"):
+        # Load model only when needed
+        if model is None:
+            with st.spinner("Loading model... This may take a moment."):
+                model = load_model(version, size)
+
+        with st.spinner("Detecting objects..."):
+            # Convert image to bytes for caching
+            image_bytes = image_to_bytes(image)
+            results = detect_objects(model, image_bytes)
 
         st.image(results.plot(), caption="Detection Result", use_column_width=True)
 
