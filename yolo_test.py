@@ -4,14 +4,11 @@ from PIL import Image
 import io
 import requests
 
-# Cache the model loading
-@st.cache_resource
 def load_model(version, size):
     model_name = f"yolo{version}{size}"
     return YOLO(model_name)
 
-# Cache the object detection function
-@st.cache_data
+# @st.cache_data
 def detect_objects(_model, image_bytes, max_size=640):
     # Convert bytes back to PIL Image
     image = Image.open(io.BytesIO(image_bytes))
@@ -23,7 +20,7 @@ def detect_objects(_model, image_bytes, max_size=640):
     results = _model(image)
     return results[0]
 
-@st.cache_data
+# @st.cache_data
 def load_image_from_url(url, max_size=640):
     try:
         response = requests.get(url)
@@ -61,9 +58,6 @@ def main():
         elif version == "v9":
             size = st.selectbox("Select model size", ["t", "s", "m", "c"])
 
-    # Lazy loading of the model
-    model = None
-
     # Two options: Upload image or provide URL
     option = st.radio("Choose an option to provide the image", ["Upload Image", "Image URL"])
 
@@ -86,11 +80,10 @@ def main():
             st.warning("Please provide a valid image URL with jpg, jpeg, or png extension.")
 
     if image is not None and st.button("Detect Objects"):
-        # Load model only when needed
-        if model is None:
-            with st.spinner("Loading model... This may take a moment."):
-                st.text(f"Using Yolo {version}-{size}")
-                model = load_model(version, size)
+        # Load model based on selected version and size
+        with st.spinner("Loading model... This may take a moment."):
+            st.text(f"Using YOLO {version}-{size}")
+            model = load_model(version, size)
 
         with st.spinner("Detecting objects..."):
             # Convert image to bytes for caching
