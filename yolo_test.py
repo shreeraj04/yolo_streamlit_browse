@@ -2,6 +2,7 @@ import streamlit as st
 from ultralytics import YOLO
 from PIL import Image
 import io
+import requests
 
 def load_model(version, size):
     model_name = f"yolo{version}{size}"
@@ -10,6 +11,22 @@ def load_model(version, size):
 def detect_objects(model, image):
     results = model(image)
     return results[0]
+
+def load_image_from_url(url):
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            return Image.open(io.BytesIO(response.content))
+        else:
+            st.error("Failed to load image from URL.")
+            return None
+    except Exception as e:
+        st.error(f"Error loading image from URL: {e}")
+        return None
+
+def is_valid_image_file(filename):
+    valid_extensions = [".jpg", ".jpeg", ".png"]
+    return any(filename.endswith(ext) for ext in valid_extensions)
 
 def main():
     st.title("YOLO Object Detection App")
@@ -25,32 +42,42 @@ def main():
 
     model = load_model(version, size)
 
-    uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
+    # Two options: Upload image or provide URL
+    option = st.radio("Choose an option to provide the image", ["Upload Image", "Image URL"])
 
-    if uploaded_file is not None:
-        # Display the uploaded image
-        image = Image.open(uploaded_file)
-        st.image(image, caption="Uploaded Image", use_column_width=True)
+    if option == "Upload Image":
+        uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
 
-        if st.button("Detect Objects"):
-            results = detect_objects(model, image)
-            
-            # Display the image with bounding boxes
-            st.image(results.plot(), caption="Detection Result", use_column_width=True)
-            
-            # Extract detection results
-            detections = results.boxes.data.cpu().numpy()
-            classes = results.names
-            
-            st.subheader("Detected Objects:")
-            if len(detections) > 0:
-                for detection in detections:
-                    class_id = int(detection[5])
-                    class_name = classes[class_id]
-                    confidence = detection[4]
-                    st.write(f"{class_name}: {confidence:.2%}")
-            else:
-                st.info("No objects detected in the image.")
+        if uploaded_file is not None:
+            image = Image.open(uploaded_file)
+            st.image(image, caption="Uploaded Image", use_column_width=True)
+
+    elif option == "Image URL":
+        image_url = st.text_input("Enter image URL")
+        if image_url and is_valid_image_file(image_url):
+            image = load_image_from_url(image_url)
+            if image:
+                st.image(image, caption="Image from URL", use_column_width=True)
+        else:
+            st.warning("Please provide a valid image URL with jpg, jpeg, or png extension.")
+
+    if 'image' in locals() and st.button("Detect Objects"):
+        results = detect_objects(model, image)
+
+        st.image(results.plot(), caption="Detection Result", use_column_width=True)
+
+        detections = results.boxes.data.cpu().numpy()
+        classes = results.names
+
+        st.subheader("Detected Objects:")
+        if len(detections) > 0:
+            for detection in detections:
+                class_id = int(detection[5])
+                class_name = classes[class_id]
+                confidence = detection[4]
+                st.write(f"{class_name}: {confidence:.2%}")
+        else:
+            st.info("No objects detected in the image.")
 
 if __name__ == "__main__":
     main()
