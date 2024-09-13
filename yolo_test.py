@@ -2,7 +2,6 @@ import streamlit as st
 from ultralytics import YOLO
 from PIL import Image
 import io
-import pandas as pd
 
 def load_model(version, size):
     model_name = f"yolo{version}{size}"
