@@ -1,2 +1,4 @@
 libgl1-mesa-glx
 python3-distutils
+zlib1g-dev
+libjpeg-dev
