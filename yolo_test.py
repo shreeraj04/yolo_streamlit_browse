@@ -16,7 +16,8 @@ def load_model(version, size):
         return YOLO(model_path)
     elif version == "v7":
         model_path = os.path.join(current_dir, "yolov7.pt")
-        model = torch.hub.load('WongKinYiu/yolov7', 'custom', model_path)
+        # model = torch.hub.load('WongKinYiu/yolov7', 'custom', model_path)
+        model = torch.load(model_path)
         model.eval()
         return model
 
