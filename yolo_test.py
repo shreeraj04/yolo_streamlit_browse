@@ -13,6 +13,18 @@ def load_model(version, size):
         return YOLO(model_path)
     
 # @st.cache_data
+def detect_objects(_model, image_bytes, max_size=640):
+    # Convert bytes back to PIL Image
+    image = Image.open(io.BytesIO(image_bytes))
+    
+    # Resize image if it's too large
+    if max(image.size) > max_size:
+        image.thumbnail((max_size, max_size))
+    
+    results = _model(image)
+    return results[0]
+
+# @st.cache_data
 def load_image_from_url(url, max_size=640):
     try:
         response = requests.get(url)
