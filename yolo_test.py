@@ -15,9 +15,11 @@ def load_model(version, size):
         model_path = os.path.join(current_dir, model_name)
         return YOLO(model_path)
     elif version == "v7":
+        current_dir = os.path.dirname(__file__)  # Gets the current directory of the .py file
         model_path = os.path.join(current_dir, "yolov7.pt")
-        # model = torch.hub.load('WongKinYiu/yolov7', 'custom', model_path)
-        model = torch.load(model_path)
+
+        # Load from the cloned local yolov7 repo
+        model = torch.hub.load('./yolov7', 'custom', model_path, source='local')
         model.eval()
         return model
 
