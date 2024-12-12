@@ -30,12 +30,13 @@ class YOLOVideoTransformer(VideoTransformerBase):
         self.version = version
 
     def transform(self, frame):
-        img = frame.to_ndarray(format="bgr24")  # Convert frame to BGR format
+        # Convert the frame to a NumPy array in BGR format
+        img = frame.to_ndarray(format="bgr24")
 
-        # Perform object detection
+        # Perform object detection using the YOLO model
         if self.version in ["v8", "v9"]:
             results = self.model(img)
-            annotated_frame = results[0].plot()
+            annotated_frame = results[0].plot()  # Annotate the frame with detections
         elif self.version == "v7":
             results = self.model(img)
             annotated_frame = img.copy()
@@ -140,11 +141,13 @@ def main():
             except Exception as e:
                 st.error(f"Failed to load image: {e}")
 
+
     elif option == "Live Video":
         st.write("Starting live video detection...")
         with st.spinner("Loading model..."):
             model = load_model(version, size)
-        
+            st.write("Model Loaded")
+
         webrtc_streamer(
             key="live-video",
             mode=WebRtcMode.SENDRECV,
