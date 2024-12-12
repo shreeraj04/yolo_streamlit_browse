@@ -7,6 +7,7 @@ import torch
 import cv2
 import numpy as np
 import os
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode
 
 def load_model(version, size):
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -23,6 +24,28 @@ def load_model(version, size):
         model.eval()
         return model
 
+class YOLOVideoTransformer(VideoTransformerBase):
+    def __init__(self, model, version="v8"):
+        self.model = model
+        self.version = version
+
+    def transform(self, frame):
+        img = frame.to_ndarray(format="bgr24")  # Convert frame to BGR format
+
+        # Perform object detection
+        if self.version in ["v8", "v9"]:
+            results = self.model(img)
+            annotated_frame = results[0].plot()
+        elif self.version == "v7":
+            results = self.model(img)
+            annotated_frame = img.copy()
+            for *xyxy, conf, cls in results.xyxy[0]:
+                label = f'{results.names[int(cls)]} {conf:.2f}'
+                cv2.rectangle(annotated_frame, (int(xyxy[0]), int(xyxy[1])), (int(xyxy[2]), int(xyxy[3])), (255, 0, 0), 2)
+                cv2.putText(annotated_frame, label, (int(xyxy[0]), int(xyxy[1] - 10)), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 0, 0), 2)
+
+        return annotated_frame
+    
 def detect_objects(_model, image_bytes, max_size=640, version="v8"):
     image = Image.open(io.BytesIO(image_bytes))
     
@@ -71,7 +94,7 @@ def plot_yolov7_results(image, results):
     return Image.fromarray(cv2.cvtColor(image_np, cv2.COLOR_BGR2RGB))
 
 def main():
-    st.title("YOLO Object Detection App")
+    st.title("YOLO Object Detection App with Live Video")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -84,9 +107,7 @@ def main():
         elif version == "v7":
             size = st.selectbox("Select model size", ["base"])
 
-    option = st.radio("Choose an option to provide the image", ["Upload Image", "Image URL"])
-
-    image = None
+    option = st.radio("Choose an option", ["Upload Image", "Image URL", "Live Video"])
 
     if option == "Upload Image":
         uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
@@ -94,43 +115,42 @@ def main():
             image = Image.open(uploaded_file)
             st.image(image, caption="Uploaded Image", use_column_width=True)
 
+            # Load YOLO model
+            model = load_model(version, size)
+            st.text(f"Using YOLO {version}-{size}")
+
+            # Perform detection
+            results = model(image)
+            st.image(results[0].plot(), caption="Detection Result", use_column_width=True)
+
     elif option == "Image URL":
         image_url = st.text_input("Enter image URL")
-        if image_url and is_valid_image_file(image_url):
-            image = load_image_from_url(image_url)
-            if image:
+        if image_url:
+            try:
+                image = Image.open(requests.get(image_url, stream=True).raw)
                 st.image(image, caption="Image from URL", use_column_width=True)
-        elif image_url:
-            st.warning("Please provide a valid image URL with jpg, jpeg, or png extension.")
 
-    if image is not None and st.button("Detect Objects"):
-        with st.spinner("Loading model... This may take a moment."):
-            st.text(f"Using YOLO {version}-{size}")
+                # Load YOLO model
+                model = load_model(version, size)
+                st.text(f"Using YOLO {version}-{size}")
+
+                # Perform detection
+                results = model(image)
+                st.image(results[0].plot(), caption="Detection Result", use_column_width=True)
+            except Exception as e:
+                st.error(f"Failed to load image: {e}")
+
+    elif option == "Live Video":
+        st.write("Starting live video detection...")
+        with st.spinner("Loading model..."):
             model = load_model(version, size)
-
-        with st.spinner("Detecting objects..."):
-            image_bytes = image_to_bytes(image)
-            results = detect_objects(model, image_bytes, version=version)
-
-        if version in ["v8", "v9"]:
-            st.image(results.plot(), caption="Detection Result", use_column_width=True)
-            detections = results.boxes.data.cpu().numpy()
-            classes = results.names
-        elif version == "v7":
-            result_image = plot_yolov7_results(image, results)
-            st.image(result_image, caption="Detection Result", use_column_width=True)
-            detections = results.xyxy[0].cpu().numpy()
-            classes = results.names
-
-        st.subheader("Detected Objects:")
-        if len(detections) > 0:
-            for detection in detections:
-                class_id = int(detection[5])
-                class_name = classes[class_id]
-                confidence = detection[4]
-                st.write(f"{class_name}: {confidence:.2%}")
-        else:
-            st.info("No objects detected in the image.")
+        
+        webrtc_streamer(
+            key="live-video",
+            mode=WebRtcMode.SENDRECV,
+            video_transformer_factory=lambda: YOLOVideoTransformer(model, version),
+            media_stream_constraints={"video": True, "audio": False},
+        )
 
 if __name__ == "__main__":
     main()
