@@ -146,7 +146,7 @@ def main():
         st.write("Starting live video detection...")
         with st.spinner("Loading model..."):
             model = load_model(version, size)
-            st.write("Model Loaded")
+            st.write(f"Model Loaded {version} {size}")
 
         webrtc_streamer(
             key="live-video",
