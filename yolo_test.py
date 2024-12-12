@@ -70,49 +70,6 @@ def plot_yolov7_results(image, results):
         cv2.putText(image_np, label, (int(xyxy[0]), int(xyxy[1] - 10)), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 0, 0), 2)
     return Image.fromarray(cv2.cvtColor(image_np, cv2.COLOR_BGR2RGB))
 
-def detect_objects_video(_model, frame, version="v8"):
-    """
-    Detect objects in a single video frame.
-    """
-    image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-    if version in ["v8", "v9"]:
-        results = _model(image)
-        return results[0], frame
-    elif version == "v7":
-        results = _model(frame)
-        return results, frame
-
-def process_video(_model, version="v8"):
-    """
-    Stream video feed and apply YOLO detection frame by frame.
-    """
-    cap = cv2.VideoCapture(0)  # 0 for webcam
-    if not cap.isOpened():
-        st.error("Unable to access webcam.")
-        return
-
-    stframe = st.empty()  # Placeholder for video frames
-
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            st.error("Failed to capture video frame.")
-            break
-
-        results, processed_frame = detect_objects_video(_model, frame, version)
-
-        # Draw bounding boxes on the frame
-        if version in ["v8", "v9"]:
-            annotated_frame = results.plot()
-        elif version == "v7":
-            annotated_frame = plot_yolov7_results(Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)), results)
-            annotated_frame = np.array(annotated_frame)
-
-        # Display the processed frame in the app
-        stframe.image(annotated_frame, channels="BGR", use_column_width=True)
-
-    cap.release()
-
 def main():
     st.title("YOLO Object Detection App")
 
@@ -127,7 +84,7 @@ def main():
         elif version == "v7":
             size = st.selectbox("Select model size", ["base"])
 
-    option = st.radio("Choose an option", ["Upload Image", "Image URL", "Live Video"])
+    option = st.radio("Choose an option to provide the image", ["Upload Image", "Image URL"])
 
     image = None
 
@@ -145,13 +102,6 @@ def main():
                 st.image(image, caption="Image from URL", use_column_width=True)
         elif image_url:
             st.warning("Please provide a valid image URL with jpg, jpeg, or png extension.")
-
-    elif option == "Live Video":
-        if st.button("Start Live Video"):
-            with st.spinner("Loading model... This may take a moment."):
-                model = load_model(version, size)
-            with st.spinner("Starting live video..."):
-                process_video(model, version)
 
     if image is not None and st.button("Detect Objects"):
         with st.spinner("Loading model... This may take a moment."):
