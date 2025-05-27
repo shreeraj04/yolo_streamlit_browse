@@ -11,7 +11,7 @@ from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode
 
 def load_model(version, size):
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    if version in ["v8", "v9"]:
+    if version in ["v8", "v9", "v9_1"]:
         model_name = f"yolo{version}{size}.pt"
         model_path = os.path.join(current_dir, model_name)
         return YOLO(model_path)
@@ -99,7 +99,7 @@ def main():
 
     col1, col2 = st.columns(2)
     with col1:
-        version = st.selectbox("Select YOLO version", ["v9", "v8", "v7"])
+        version = st.selectbox("Select YOLO version", ["v9", "v8", "v7", "v9_1"])
     with col2:
         if version == "v8":
             size = st.selectbox("Select model size", ["n", "s", "m", "l"])
@@ -107,7 +107,8 @@ def main():
             size = st.selectbox("Select model size", ["t", "s", "m", "c"])
         elif version == "v7":
             size = st.selectbox("Select model size", ["base"])
-
+        elif version == "v9_1":
+            size = st.selectbox("Select model size", ["best"])
     option = st.radio("Choose an option", ["Upload Image", "Image URL", "Live Video"])
 
     if option == "Upload Image":
