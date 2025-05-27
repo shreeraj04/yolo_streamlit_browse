@@ -34,7 +34,7 @@ class YOLOVideoTransformer(VideoTransformerBase):
         img = frame.to_ndarray(format="bgr24")
 
         # Perform object detection using the YOLO model
-        if self.version in ["v8", "v9"]:
+        if self.version in ["v8", "v9", "v9_1"]:
             results = self.model(img)
             annotated_frame = results[0].plot()  # Annotate the frame with detections
         elif self.version == "v7":
